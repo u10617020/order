@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上點餐系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen py-8 px-4 sm:px-6 flex flex-col items-center">
+
+    <div class="w-full max-w-3xl space-y-6">
+        
+        <!-- Header Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">線上點餐系統</h1>
+            <p class="text-sm text-slate-600 leading-relaxed mb-4">
+                營業時間：每週一至週六 早上05:00 - 10:00<br>
+                <span class="font-bold text-red-600">預算限制：每人最高 60 元</span>
+            </p>
+            <hr class="border-slate-200 mb-4">
+            <div class="text-red-600 text-sm font-medium">* 必填</div>
+        </div>
+
+        <form id="orderForm" class="space-y-6">
+            <!-- Customer Info Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="customerName" class="block text-sm font-medium text-slate-700 mb-2">
+                            您的姓名 <span class="text-red-600">*</span>
+                        </label>
+                        <input type="text" id="customerName" required placeholder="請輸入姓名" 
+                               class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+                    </div>
+                    <div>
+                        <label for="orderDate" class="block text-sm font-medium text-slate-700 mb-2">
+                            訂餐日期 <span class="text-red-600">*</span>
+                        </label>
+                        <input type="date" id="orderDate" required 
+                               class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Menu Categories will be inserted here -->
+            <div id="menuContainer" class="space-y-6"></div>
+
+            <!-- Total and Submit Action Bar -->
+            <div class="sticky bottom-4 z-10 bg-white rounded-2xl shadow-lg border border-slate-200 p-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all">
+                <div class="flex flex-col items-start sm:items-center w-full sm:w-auto">
+                    <div class="text-lg text-slate-700 font-medium flex items-center">
+                        目前金額：<span id="totalAmount" class="text-2xl ml-2 font-bold text-blue-600">0</span> <span class="ml-1 text-sm">元</span>
+                    </div>
+                    <div id="budgetWarning" class="text-red-600 text-sm mt-1 hidden font-bold flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        已超過 60 元上限
+                    </div>
+                </div>
+                <button type="button" id="submitOrderBtn" disabled
+                        class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-3 px-8 rounded-xl transition-colors shadow-sm text-lg">
+                    送出訂單
+                </button>
+            </div>
+        </form>
+
+        <!-- Admin Records Toggle -->
+        <div class="text-center mt-12 pt-8 border-t border-slate-300">
+            <button id="toggleRecordsBtn" class="text-sm text-slate-500 hover:text-slate-700 underline bg-transparent border-none cursor-pointer">
+                管理員：顯示訂餐紀錄區塊
+            </button>
+        </div>
+
+        <!-- Records Section (Hidden by default) -->
+        <div id="recordsSection" class="hidden mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-slate-800">訂餐紀錄</h2>
+                <button type="button" id="exportRecordsBtn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center text-sm transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    匯出為 CSV
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 text-slate-700 border-b-2 border-slate-200 text-sm">
+                        <tr>
+                            <th class="px-4 py-3 font-semibold">日期</th>
+                            <th class="px-4 py-3 font-semibold">姓名</th>
+                            <th class="px-4 py-3 font-semibold">餐點明細</th>
+                            <th class="px-4 py-3 font-semibold text-right">總金額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsTableBody" class="divide-y divide-slate-100 text-sm bg-white">
+                        <tr>
+                            <td colspan="4" class="px-4 py-6 text-center text-slate-500">目前尚無紀錄</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="text-center text-xs text-slate-400 mt-8 mb-4">
+            這份表單由自訂 HTML 建立，資料將暫存於您的瀏覽器中。
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div id="messageModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all">
+            <h3 class="text-xl font-bold text-slate-900 mb-2" id="modalTitle">提示</h3>
+            <p class="text-base text-slate-600 mb-6" id="modalMessage">訊息內容</p>
+            <div class="flex justify-end">
+                <button type="button" id="closeModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium py-2 px-6 rounded-lg transition-colors">
+                    確定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MAX_BUDGET = 60;
+        
+        const menuData = [
+            {
+                category: "中式點心",
+                items: [
+                    { id: "m1", name: "粽子", price: 30 },
+                    { id: "m2", name: "肉包", price: 15 },
+                    { id: "m3", name: "煎包", price: 20 },
+                    { id: "m4", name: "煎餃", price: 35 },
+                    { id: "m5", name: "炒麵", price: 50 },
+                    { id: "m6", name: "肉燥飯 (大)", price: 50 },
+                    { id: "m7", name: "肉燥飯 (小)", price: 40 },
+                    { id: "m8", name: "小籠包", price: 35 },
+                    { id: "m9", name: "蘿蔔糕", price: 40 },
+                    { id: "m10", name: "手工蛋餅", price: 25 }
+                ]
+            },
+            {
+                category: "饅頭與抓餅",
+                items: [
+                    { id: "m11", name: "原味饅頭", price: 15 },
+                    { id: "m12", name: "黑糖饅頭", price: 15 },
+                    { id: "m13", name: "翡翠抓餅", price: 40 },
+                    { id: "m14", name: "原味抓餅", price: 40 },
+                    { id: "m15", name: "九層塔抓餅", price: 40 }
+                ]
+            },
+            {
+                category: "吐司與西式",
+                items: [
+                    { id: "m16", name: "巧克力吐司", price: 15 },
+                    { id: "m17", name: "花生吐司", price: 15 },
+                    { id: "m18", name: "奶酥吐司", price: 15 },
+                    { id: "m19", name: "熱狗", price: 35 },
+                    { id: "m20", name: "雞塊", price: 40 }
+                ]
+            },
+            {
+                category: "加蛋選項 (需搭配主食)",
+                items: [
+                    { id: "m21", name: "蘿蔔糕加蛋", price: 50 },
+                    { id: "m22", name: "原味饅頭加蛋", price: 35 },
+                    { id: "m23", name: "黑糖饅頭加蛋", price: 35 },
+                    { id: "m24", name: "翡翠抓餅加蛋", price: 45 },
+                    { id: "m25", name: "原味抓餅加蛋", price: 45 },
+                    { id: "m26", name: "九層塔抓餅加蛋", price: 45 }
+                ]
+            },
+            {
+                category: "蛋餅類",
+                items: [
+                    { id: "m27", name: "原味蛋餅", price: 30 },
+                    { id: "m28", name: "培根蛋餅", price: 40 },
+                    { id: "m29", name: "肉排蛋餅", price: 40 },
+                    { id: "m30", name: "火腿蛋餅", price: 40 },
+                    { id: "m31", name: "肉鬆蛋餅", price: 40 }
+                ]
+            },
+            {
+                category: "三明治與漢堡",
+                items: [
+                    { id: "m32", name: "土司夾蛋", price: 35 },
+                    { id: "m33", name: "三明治", price: 30 },
+                    { id: "m34", name: "肉排土司", price: 55 },
+                    { id: "m35", name: "火腿土司", price: 55 },
+                    { id: "m36", name: "培根土司", price: 55 },
+                    { id: "m37", name: "肉鬆土司", price: 55 },
+                    { id: "m38", name: "漢堡蛋", price: 45 },
+                    { id: "m39", name: "肉排漢堡", price: 55 },
+                    { id: "m40", name: "火腿漢堡", price: 55 },
+                    { id: "m41", name: "培根漢堡", price: 55 },
+                    { id: "m42", name: "肉鬆漢堡", price: 55 }
+                ]
+            },
+            {
+                category: "飲品與湯",
+                items: [
+                    { id: "m43", name: "湯", price: 35 },
+                    { id: "m44", name: "豆漿 (大)", price: 25 },
+                    { id: "m45", name: "豆漿 (小)", price: 15 },
+                    { id: "m46", name: "紅茶 (大)", price: 25 },
+                    { id: "m47", name: "紅茶 (小)", price: 10 },
+                    { id: "m48", name: "奶茶 (大)", price: 25 },
+                    { id: "m49", name: "奶茶 (小)", price: 10 }
+                ]
+            }
+        ];
+
+        let currentOrder = {};
+        let orderRecords = [];
+        
+        const menuContainer = document.getElementById('menuContainer');
+        const totalAmountDisplay = document.getElementById('totalAmount');
+        const submitOrderBtn = document.getElementById('submitOrderBtn');
+        const budgetWarning = document.getElementById('budgetWarning');
+        const customerNameInput = document.getElementById('customerName');
+        const orderDateInput = document.getElementById('orderDate');
+        const recordsTableBody = document.getElementById('recordsTableBody');
+        const recordsSection = document.getElementById('recordsSection');
+        const toggleRecordsBtn = document.getElementById('toggleRecordsBtn');
+        const exportRecordsBtn = document.getElementById('exportRecordsBtn');
+        const messageModal = document.getElementById('messageModal');
+
+        function renderMenu() {
+            menuData.forEach((category, index) => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8';
+                
+                const title = document.createElement('h2');
+                title.className = 'text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2';
+                title.textContent = category.category;
+                card.appendChild(title);
+
+                const itemsWrapper = document.createElement('div');
+                itemsWrapper.className = 'space-y-2';
+
+                category.items.forEach(item => {
+                    const itemRow = document.createElement('div');
+                    itemRow.className = 'flex items-center justify-between py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 px-3 -mx-3 rounded-xl transition-colors';
+                    
+                    const labelDiv = document.createElement('label');
+                    labelDiv.className = 'flex flex-col cursor-pointer flex-grow';
+                    labelDiv.setAttribute('for', `qty-${item.id}`);
+                    labelDiv.innerHTML = `
+                        <span class="text-base font-medium text-slate-800">${item.name}</span>
+                        <span class="text-sm text-slate-500">${item.price} 元</span>
+                    `;
+                    
+                    const selectWrapper = document.createElement('div');
+                    selectWrapper.className = 'ml-4 flex items-center';
+                    
+                    const select = document.createElement('select');
+                    select.id = `qty-${item.id}`;
+                    select.className = 'bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-24 p-2 cursor-pointer outline-none transition-shadow shadow-sm';
+                    
+                    // Options from 0 to 5
+                    for(let i=0; i<=5; i++) {
+                        const option = document.createElement('option');
+                        option.value = i;
+                        if(i === 0) {
+                            option.text = "數量";
+                        } else {
+                            option.text = i;
+                        }
+                        select.appendChild(option);
+                    }
+
+                    select.addEventListener('change', (e) => {
+                        updateQuantity(item, parseInt(e.target.value));
+                    });
+
+                    selectWrapper.appendChild(select);
+                    itemRow.appendChild(labelDiv);
+                    itemRow.appendChild(selectWrapper);
+                    itemsWrapper.appendChild(itemRow);
+                });
+
+                card.appendChild(itemsWrapper);
+                menuContainer.appendChild(card);
+            });
+        }
+
+        function updateQuantity(item, qty) {
+            if (qty === 0) {
+                delete currentOrder[item.id];
+            } else {
+                currentOrder[item.id] = {
+                    name: item.name,
+                    price: item.price,
+                    quantity: qty
+                };
+            }
+            updateOrderSummary();
+        }
+
+        function calculateTotal() {
+            let total = 0;
+            for (const key in currentOrder) {
+                total += currentOrder[key].price * currentOrder[key].quantity;
+            }
+            return total;
+        }
+
+        function updateOrderSummary() {
+            const total = calculateTotal();
+            totalAmountDisplay.textContent = total;
+            
+            const hasName = customerNameInput.value.trim() !== '';
+            const hasDate = orderDateInput.value !== '';
+            const hasItems = total > 0;
+            
+            if (total > MAX_BUDGET) {
+                budgetWarning.classList.remove('hidden');
+                totalAmountDisplay.classList.add('text-red-600');
+                totalAmountDisplay.classList.remove('text-blue-600');
+                submitOrderBtn.disabled = true;
+            } else {
+                budgetWarning.classList.add('hidden');
+                totalAmountDisplay.classList.remove('text-red-600');
+                totalAmountDisplay.classList.add('text-blue-600');
+                // Enable if form is filled correctly
+                submitOrderBtn.disabled = !(hasName && hasDate && hasItems);
+            }
+        }
+
+        function resetForm() {
+            currentOrder = {};
+            document.getElementById('orderForm').reset();
+            // Reset date to today
+            setTodayDate();
+            updateOrderSummary();
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setTodayDate() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            orderDateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            messageModal.classList.remove('hidden');
+        }
+
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            messageModal.classList.add('hidden');
+        });
+
+        customerNameInput.addEventListener('input', updateOrderSummary);
+        orderDateInput.addEventListener('input', updateOrderSummary);
+
+        submitOrderBtn.addEventListener('click', () => {
+            const total = calculateTotal();
+            const name = customerNameInput.value.trim();
+            const date = orderDateInput.value;
+
+            if (!name || !date || total === 0 || total > MAX_BUDGET) {
+                return; // Guard clause (button should be disabled anyway)
+            }
+
+            const timeString = new Date().toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit'});
+            const details = Object.values(currentOrder).map(item => `${item.name} x${item.quantity}`).join(', ');
+
+            orderRecords.push({
+                date: date,
+                time: timeString,
+                name: name,
+                details: details,
+                total: total
+            });
+
+            renderRecords();
+            showModal("提交成功", `感謝您，${name}！您的訂單已經記錄完畢。總金額為 ${total} 元。`);
+            resetForm();
+        });
+
+        toggleRecordsBtn.addEventListener('click', () => {
+            recordsSection.classList.toggle('hidden');
+            if(!recordsSection.classList.contains('hidden')) {
+                toggleRecordsBtn.textContent = "隱藏訂餐紀錄區塊";
+            } else {
+                toggleRecordsBtn.textContent = "管理員：顯示訂餐紀錄區塊";
+            }
+        });
+
+        function renderRecords() {
+            recordsTableBody.innerHTML = '';
+            
+            if (orderRecords.length === 0) {
+                recordsTableBody.innerHTML = `<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">目前尚無紀錄</td></tr>`;
+                return;
+            }
+
+            [...orderRecords].reverse().forEach(record => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 border-b border-slate-100 whitespace-nowrap">
+                        <div class="font-medium text-slate-900">${record.date}</div>
+                        <div class="text-xs text-slate-500">${record.time}</div>
+                    </td>
+                    <td class="px-4 py-3 border-b border-slate-100 font-medium text-slate-900">${record.name}</td>
+                    <td class="px-4 py-3 border-b border-slate-100 text-slate-700">${record.details}</td>
+                    <td class="px-4 py-3 border-b border-slate-100 font-bold text-blue-600 text-right">${record.total} 元</td>
+                `;
+                recordsTableBody.appendChild(tr);
+            });
+        }
+
+        exportRecordsBtn.addEventListener('click', () => {
+            if (orderRecords.length === 0) {
+                showModal("提示", "目前沒有紀錄可以匯出。");
+                return;
+            }
+
+            const headers = ['日期', '時間', '姓名', '餐點明細', '總金額'];
+            const csvRows = [headers.join(',')];
+
+            orderRecords.forEach(record => {
+                const escapedDetails = `"${record.details.replace(/"/g, '""')}"`;
+                csvRows.push([record.date, record.time, record.name, escapedDetails, record.total].join(','));
+            });
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `線上點餐紀錄_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Initialize Form
+        window.onload = () => {
+            setTodayDate();
+            renderMenu();
+            updateOrderSummary();
+        };
+
+    </script>
+</body>
+</html>
