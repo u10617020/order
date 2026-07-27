@@ -72,20 +72,31 @@
 
         <!-- Records Section (Hidden by default) -->
         <div id="recordsSection" class="hidden mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
-            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                 <h2 class="text-xl font-bold text-slate-800">訂餐紀錄</h2>
-                <button type="button" id="exportRecordsBtn"
-                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center text-sm transition-colors">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    匯出為 CSV
-                </button>
+                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <button type="button" id="exportFullBtn"
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center justify-center text-sm transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        匯出 (完整版)
+                    </button>
+                    <button type="button" id="exportAnonymousBtn"
+                            class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center justify-center text-sm transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        匯出 (匿名版)
+                    </button>
+                    <button type="button" id="clearRecordsBtn"
+                            class="bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 px-4 rounded-lg border border-red-200 flex items-center justify-center text-sm transition-colors ml-0 sm:ml-2">
+                        清空紀錄
+                    </button>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 text-slate-700 border-b-2 border-slate-200 text-sm">
                         <tr>
-                            <th class="px-4 py-3 font-semibold">日期</th>
+                            <th class="px-4 py-3 font-semibold">日期與時間</th>
                             <th class="px-4 py-3 font-semibold">姓名</th>
                             <th class="px-4 py-3 font-semibold">餐點明細</th>
                             <th class="px-4 py-3 font-semibold text-right">總金額</th>
@@ -101,7 +112,7 @@
         </div>
         
         <div class="text-center text-xs text-slate-400 mt-8 mb-4">
-            這份表單由自訂 HTML 建立，資料將暫存於您的瀏覽器中。
+            這份表單的資料已安全地儲存在此裝置的瀏覽器中，重新整理不會遺失。
         </div>
     </div>
 
@@ -113,6 +124,22 @@
             <div class="flex justify-end">
                 <button type="button" id="closeModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium py-2 px-6 rounded-lg transition-colors">
                     確定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all">
+            <h3 class="text-xl font-bold text-slate-900 mb-2">確認清空</h3>
+            <p class="text-base text-slate-600 mb-6">您確定要清空所有訂餐紀錄嗎？此動作無法復原。</p>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="cancelConfirmBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium py-2 px-4 rounded-lg transition-colors">
+                    取消
+                </button>
+                <button type="button" id="doConfirmBtn" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                    確定清空
                 </button>
             </div>
         </div>
@@ -209,7 +236,8 @@
         ];
 
         let currentOrder = {};
-        let orderRecords = [];
+        // 1. 初始化時從 LocalStorage 讀取資料
+        let orderRecords = JSON.parse(localStorage.getItem('orderRecords')) || [];
         
         const menuContainer = document.getElementById('menuContainer');
         const totalAmountDisplay = document.getElementById('totalAmount');
@@ -220,11 +248,14 @@
         const recordsTableBody = document.getElementById('recordsTableBody');
         const recordsSection = document.getElementById('recordsSection');
         const toggleRecordsBtn = document.getElementById('toggleRecordsBtn');
-        const exportRecordsBtn = document.getElementById('exportRecordsBtn');
+        const exportFullBtn = document.getElementById('exportFullBtn');
+        const exportAnonymousBtn = document.getElementById('exportAnonymousBtn');
+        const clearRecordsBtn = document.getElementById('clearRecordsBtn');
         const messageModal = document.getElementById('messageModal');
+        const confirmModal = document.getElementById('confirmModal');
 
         function renderMenu() {
-            menuData.forEach((category, index) => {
+            menuData.forEach((category) => {
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8';
                 
@@ -320,7 +351,6 @@
                 budgetWarning.classList.add('hidden');
                 totalAmountDisplay.classList.remove('text-red-600');
                 totalAmountDisplay.classList.add('text-blue-600');
-                // Enable if form is filled correctly
                 submitOrderBtn.disabled = !(hasName && hasDate && hasItems);
             }
         }
@@ -328,10 +358,8 @@
         function resetForm() {
             currentOrder = {};
             document.getElementById('orderForm').reset();
-            // Reset date to today
             setTodayDate();
             updateOrderSummary();
-            // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -362,10 +390,11 @@
             const date = orderDateInput.value;
 
             if (!name || !date || total === 0 || total > MAX_BUDGET) {
-                return; // Guard clause (button should be disabled anyway)
+                return; 
             }
 
-            const timeString = new Date().toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit'});
+            // 使用24小時制，確保排序正確
+            const timeString = new Date().toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit', hour12: false});
             const details = Object.values(currentOrder).map(item => `${item.name} x${item.quantity}`).join(', ');
 
             orderRecords.push({
@@ -373,18 +402,27 @@
                 time: timeString,
                 name: name,
                 details: details,
-                total: total
+                total: total,
+                timestamp: new Date(`${date} ${timeString}`).getTime() || new Date().getTime() // 用於精確排序
             });
 
+            // 儲存至 LocalStorage
+            saveRecordsToStorage();
+            
             renderRecords();
             showModal("提交成功", `感謝您，${name}！您的訂單已經記錄完畢。總金額為 ${total} 元。`);
             resetForm();
         });
 
+        function saveRecordsToStorage() {
+            localStorage.setItem('orderRecords', JSON.stringify(orderRecords));
+        }
+
         toggleRecordsBtn.addEventListener('click', () => {
             recordsSection.classList.toggle('hidden');
             if(!recordsSection.classList.contains('hidden')) {
                 toggleRecordsBtn.textContent = "隱藏訂餐紀錄區塊";
+                renderRecords(); // 打開時重新渲染，確保資料最新
             } else {
                 toggleRecordsBtn.textContent = "管理員：顯示訂餐紀錄區塊";
             }
@@ -398,7 +436,10 @@
                 return;
             }
 
-            [...orderRecords].reverse().forEach(record => {
+            // 3. 依照日期與時間排序 (由新到舊)
+            orderRecords.sort((a, b) => b.timestamp - a.timestamp);
+
+            orderRecords.forEach(record => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 transition-colors';
                 tr.innerHTML = `
@@ -414,18 +455,31 @@
             });
         }
 
-        exportRecordsBtn.addEventListener('click', () => {
+        // 2. 匯出邏輯 (整合匿名與完整版)
+        function handleExport(isAnonymous) {
             if (orderRecords.length === 0) {
                 showModal("提示", "目前沒有紀錄可以匯出。");
                 return;
             }
 
-            const headers = ['日期', '時間', '姓名', '餐點明細', '總金額'];
+            // 匯出前確保排序正確
+            orderRecords.sort((a, b) => b.timestamp - a.timestamp);
+
+            // 依據是否匿名，決定標題欄位
+            const headers = isAnonymous 
+                ? ['日期', '時間', '餐點明細', '總金額'] 
+                : ['日期', '時間', '姓名', '餐點明細', '總金額'];
+            
             const csvRows = [headers.join(',')];
 
             orderRecords.forEach(record => {
                 const escapedDetails = `"${record.details.replace(/"/g, '""')}"`;
-                csvRows.push([record.date, record.time, record.name, escapedDetails, record.total].join(','));
+                
+                if (isAnonymous) {
+                    csvRows.push([record.date, record.time, escapedDetails, record.total].join(','));
+                } else {
+                    csvRows.push([record.date, record.time, record.name, escapedDetails, record.total].join(','));
+                }
             });
 
             const csvString = csvRows.join('\n');
@@ -433,13 +487,35 @@
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             
+            const fileNamePrefix = isAnonymous ? '匿名訂餐紀錄' : '完整訂餐紀錄';
+            
             link.setAttribute("href", url);
-            link.setAttribute("download", `線上點餐紀錄_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute("download", `${fileNamePrefix}_${new Date().toISOString().split('T')[0]}.csv`);
             link.style.visibility = 'hidden';
             
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        exportFullBtn.addEventListener('click', () => handleExport(false));
+        exportAnonymousBtn.addEventListener('click', () => handleExport(true));
+
+        // 清空紀錄功能 (順便加上，方便您測試或換天使用)
+        document.getElementById('clearRecordsBtn').addEventListener('click', () => {
+            confirmModal.classList.remove('hidden');
+        });
+
+        document.getElementById('cancelConfirmBtn').addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+        });
+
+        document.getElementById('doConfirmBtn').addEventListener('click', () => {
+            orderRecords = [];
+            saveRecordsToStorage();
+            renderRecords();
+            confirmModal.classList.add('hidden');
+            showModal("提示", "紀錄已全數清空。");
         });
 
         // Initialize Form
@@ -447,6 +523,10 @@
             setTodayDate();
             renderMenu();
             updateOrderSummary();
+            // 在背景預先渲染一次紀錄表
+            if (orderRecords.length > 0) {
+                 renderRecords();
+            }
         };
 
     </script>
